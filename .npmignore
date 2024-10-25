@@ -1,0 +1,16 @@
+node_modules
+/src
+/esm
+.gitignore
+pnpm-lock.yaml
+tsconfig.json
+tsconfig.esm.json
+jest.config.js
+.eslintrc.json
+.github
+*.log
+/test
+/coverage
+.prettierrc
+tsconfig.tsbuildinfo
+eslint.config.mjs
