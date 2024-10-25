@@ -4,7 +4,7 @@ import { initSync, parse } from "cjs-module-lexer";
 import { build } from "esbuild";
 import { Request, Response } from "miniflare";
 import { ViteDevServer } from "vite";
-import { getPackageValue } from "./utils";
+import { getPackageValue } from "./utils.js";
 
 initSync();
 

@@ -10,7 +10,7 @@ import {
 } from "miniflare";
 import { TransformResult, ViteDevServer } from "vite";
 import { unstable_getMiniflareWorkerOptions } from "wrangler";
-import { unsafeModuleFallbackService } from "./unsafeModuleFallbackService";
+import { unsafeModuleFallbackService } from "./unsafeModuleFallbackService.js";
 
 async function getTransformedModule(modulePath: string) {
   const result = await build({
@@ -35,7 +35,10 @@ function createEntryBuilder(viteDevServer: ViteDevServer) {
     }
   });
 
-  return async (modulePath: string) => {
+  return async (
+    modulePath: string,
+    onDependent?: (files: string[]) => void
+  ) => {
     if (!isUpdate) {
       return transform;
     }
@@ -44,7 +47,14 @@ function createEntryBuilder(viteDevServer: ViteDevServer) {
       viteDevServer.config.base
     );
     entryCode = result.outputFiles[0].text;
-    inputFiles = new Set(Object.keys(result.metafile.inputs));
+    const newInputFiles = new Set(Object.keys(result.metafile.inputs));
+    if (
+      newInputFiles.size !== inputFiles.size ||
+      [...newInputFiles].some((file) => !inputFiles.has(file))
+    ) {
+      onDependent?.([...newInputFiles].map((file) => path.resolve(file)));
+    }
+    inputFiles = newInputFiles;
     isUpdate = false;
     transform = await viteDevServer.ssrTransform(entryCode, null, modulePath);
     return transform;
@@ -74,16 +84,18 @@ export const createMiniflare = async ({
   viteDevServer,
   miniflareOptions,
   bundle,
+  onDependent,
 }: {
   viteDevServer: ViteDevServer;
   miniflareOptions?: MiniflareOptions;
   bundle?: boolean;
+  onDependent?: (files: string[]) => void;
 }) => {
   const isTsFile = fs.existsSync(
-    path.resolve(__dirname, "miniflare_module.ts")
+    path.resolve(import.meta.dirname, "miniflare_module.ts")
   );
   const modulePath = path.resolve(
-    __dirname,
+    import.meta.dirname,
     isTsFile ? "miniflare_module.ts" : "miniflare_module.js"
   );
   const code = await getTransformedModule(modulePath);
@@ -115,7 +127,7 @@ export const createMiniflare = async ({
           typeof viteDevServer.environments.ssr.fetchModule
         >;
         if (bundle) {
-          const result = await entryBuilder(args[0]);
+          const result = await entryBuilder(args[0], onDependent);
           if (!result) {
             throw new Error("esbuild error");
           }

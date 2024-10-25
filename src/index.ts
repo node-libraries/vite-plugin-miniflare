@@ -8,8 +8,8 @@ import {
   Miniflare,
 } from "miniflare";
 import { Connect, Plugin as VitePlugin } from "vite";
-import { createMiniflare } from "./miniflare";
-import { getPackageValue } from "./utils";
+import { createMiniflare } from "./miniflare.js";
+import { getPackageValue } from "./utils.js";
 import type { ServerResponse } from "node:http";
 
 const isWindows = process.platform === "win32";
@@ -27,6 +27,7 @@ export type DevServerOptions = {
   entry?: string;
   bundle?: boolean;
   injectClientScript?: boolean;
+  reload?: boolean;
 };
 
 export function devServer(params?: DevServerOptions): VitePlugin {
@@ -35,23 +36,38 @@ export function devServer(params?: DevServerOptions): VitePlugin {
     entry = "src/index.ts",
     bundle = false,
     injectClientScript = true,
+    reload = false,
   } = params || {};
+  let dependentFiles = new Set<string>();
   const plugin: VitePlugin = {
     name: "edge-dev-server",
     apply: "serve",
     configureServer: async (viteDevServer) => {
       if (!viteDevServer.config.server.preTransformRequests) return undefined;
       const runner =
-        globals.__runner ?? (await createMiniflare({ viteDevServer, bundle }));
+        globals.__runner ??
+        (await createMiniflare({
+          viteDevServer,
+          bundle,
+          onDependent: (files) => {
+            dependentFiles = new Set(files);
+          },
+        }));
       globals.__runner = runner;
       process.on("exit", () => {
         runner.dispose();
       });
       viteDevServer.watcher.on("change", (file) => {
-        if (file === path.resolve(__dirname, "miniflare_module.ts")) {
+        if (file === path.resolve(import.meta.dirname, "miniflare_module.ts")) {
           runner.dispose();
           globals.__runner = undefined;
           viteDevServer.restart();
+        }
+        if (reload && dependentFiles.has(file)) {
+          console.info(`Updated: ${file}`);
+          viteDevServer.ws.send({
+            type: "full-reload",
+          });
         }
       });
       return () => {

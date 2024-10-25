@@ -1,9 +1,9 @@
 {
   "name": "vite-plugin-miniflare",
-  "version": "0.0.1",
+  "version": "0.0.6",
   "license": "MIT",
-  "main": "./dist/cjs/index.js",
-  "types": "./dist/cjs/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -27,5 +27,7 @@
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.11.0",
     "vite": "6.0.0-beta.5"
-  }
+  },
+  "repository": "https://github.com/node-libraries/vite-plugin-miniflare",
+  "author": "SoraKumo <info@croud.jp>"
 }
