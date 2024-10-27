@@ -1,14 +1,17 @@
 import fs from "fs";
-import { createRequire } from "node:module";
 import { initSync, parse } from "cjs-module-lexer";
+import { default as enhancedResolve } from "enhanced-resolve";
 import { build } from "esbuild";
 import { Request, Response } from "miniflare";
 import { ViteDevServer } from "vite";
 import { getPackageValue } from "./utils.js";
 
-initSync();
+const resolveId = enhancedResolve.create({
+  conditionNames: ["workers", "workerd", "require"],
+  mainFields: ["browser", "workerd", "main"],
+});
 
-const require = createRequire(process.cwd());
+initSync();
 
 const isWindows = process.platform === "win32";
 
@@ -73,16 +76,17 @@ export const unsafeModuleFallbackService = async (
   if (!rawSpecifier.startsWith("./") && rawSpecifier[0] !== "/") {
     if (!fs.existsSync(specifier)) {
       if (method === "import") {
-        // specifier = import.meta.resolve(rawSpecifier, referrer);
-        // specifier = specifier.substring(8);
         const resolve = await vite.environments.ssr.pluginContainer.resolveId(
           rawSpecifier,
           referrer
         );
         specifier = resolve?.id.replace(/\?v=.+$/, "") ?? "";
       } else {
-        specifier = require.resolve(rawSpecifier, {
-          paths: [referrer],
+        specifier = await new Promise((resolve, reject) => {
+          resolveId(referrer, rawSpecifier, (err, result) => {
+            if (err || !result) reject(err);
+            else resolve(result);
+          });
         });
         specifier = specifier.replaceAll("\\", "/");
       }
@@ -115,6 +119,8 @@ export const unsafeModuleFallbackService = async (
       entryPoints: [specifier],
       format: "cjs",
       platform: "browser",
+      mainFields: ["browser", "main", "module"],
+      conditions: ["workers", "workerd", "require"],
       external: ["*.wasm"],
       bundle: true,
       packages: "external",
@@ -156,6 +162,8 @@ export const unsafeModuleFallbackService = async (
     entryPoints: [specifier],
     format: "esm",
     platform: "browser",
+    mainFields: ["browser", "module", "main"],
+    conditions: ["workers", "workerd", "require"],
     external: ["*.wasm"],
     bundle: true,
     packages: "external",

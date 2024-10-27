@@ -67,6 +67,7 @@ async function getTransformedEntry(modulePath: string, baseUrl: string) {
     format: "esm",
     platform: "browser",
     external: ["*.wasm", "virtual:*"],
+    conditions: ["worker", "workerd", "browser"],
     bundle: true,
     minify: false,
     write: false,
@@ -76,6 +77,20 @@ async function getTransformedEntry(modulePath: string, baseUrl: string) {
     banner: {
       js: `import.meta.env={BASE_URL: '${baseUrl}',DEV: true,MODE: 'development',PROD: false, SSR: true};`,
     },
+    plugins: [
+      {
+        name: "wasm-path-fix",
+        setup(build) {
+          build.onResolve({ filter: /\.wasm$/ }, (args) => {
+            return {
+              path: path.resolve(args.resolveDir, args.path),
+              namespace: "wasm",
+              external: true,
+            };
+          });
+        },
+      },
+    ],
   });
   return result;
 }
@@ -121,22 +136,32 @@ export const createMiniflare = async ({
     bindings: {
       __miniflare: true,
     },
+    d1Persist: "./.wrangler/state/v3/d1",
     serviceBindings: {
       __viteFetchModule: async (request) => {
         const args = (await request.json()) as Parameters<
           typeof viteDevServer.environments.ssr.fetchModule
         >;
+        const file = args[0];
+        if (file.endsWith(".wasm")) {
+          return new Response(
+            JSON.stringify({
+              externalize: file,
+              type: "module",
+            })
+          );
+        }
         if (bundle) {
-          const result = await entryBuilder(args[0], onDependent);
+          const result = await entryBuilder(file, onDependent);
           if (!result) {
             throw new Error("esbuild error");
           }
           return new Response(
             JSON.stringify({
               ...result,
-              file: args[0],
-              id: args[0],
-              url: args[0],
+              file,
+              id: file,
+              url: file,
               invalidate: false,
             })
           );

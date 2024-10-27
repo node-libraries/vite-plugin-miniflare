@@ -131,6 +131,7 @@ export function devServer(params?: DevServerOptions): VitePlugin {
           target: "webworker",
           resolve: {
             conditions: ["worker", "workerd", "browser"],
+            externalConditions: ["worker", "workerd", "browser"],
           },
           noExternal: Array.from(globals.__noExternalModules),
         },

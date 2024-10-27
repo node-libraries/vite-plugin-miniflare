@@ -11,6 +11,9 @@ importers:
       cjs-module-lexer:
         specifier: ^1.4.1
         version: 1.4.1
+      enhanced-resolve:
+        specifier: ^5.17.1
+        version: 5.17.1
       esbuild:
         specifier: ^0.24.0
         version: 0.24.0
