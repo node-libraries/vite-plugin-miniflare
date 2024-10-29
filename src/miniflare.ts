@@ -120,6 +120,7 @@ export const createMiniflare = async ({
   const entryBuilder = createEntryBuilder(viteDevServer);
   const _miniflareOptions: MiniflareOptions = {
     compatibilityDate: "2024-08-21",
+    compatibilityFlags: ["nodejs_compat"],
     cachePersist: ".wrangler",
     modulesRoot: fileURLToPath(new URL("./", import.meta.url)),
     modules: [
@@ -143,7 +144,12 @@ export const createMiniflare = async ({
           typeof viteDevServer.environments.ssr.fetchModule
         >;
         const file = args[0];
-        if (file.endsWith(".wasm")) {
+        if (
+          file.endsWith(".wasm") ||
+          file.startsWith("node:") ||
+          file.startsWith("cloudflare:") ||
+          file.startsWith("virtual:")
+        ) {
           return new Response(
             JSON.stringify({
               externalize: file,

@@ -1,6 +1,6 @@
 {
   "name": "vite-plugin-miniflare",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

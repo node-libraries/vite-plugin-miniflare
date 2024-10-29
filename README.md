@@ -2,7 +2,8 @@
 
 ## Sample code
 
-https://github.com/SoraKumo001/hono-miniflare
+https://github.com/SoraKumo001/hono-miniflare  
+https://github.com/SoraKumo001/remix-prisma-vite-miniflare
 
 - vite.config.ts
 
