@@ -1,5 +1,6 @@
 import {
-  FetchResult,
+  type FetchFunctionOptions,
+  type FetchResult,
   ModuleRunner,
   ssrModuleExportsKey,
 } from "vite/module-runner";
@@ -37,25 +38,28 @@ class WorkerdModuleRunner extends ModuleRunner {
         root: "/",
         sourcemapInterceptor: "prepareStackTrace",
         transport: {
-          async fetchModule(...args) {
-            const cache = args[2]?.cached ? fetchCache[args[0]] : undefined;
-            const response =
-              cache ??
-              ((await env.__viteFetchModule
-                .fetch(
-                  new Request("http://localhost", {
-                    method: "POST",
-                    body: JSON.stringify(args),
-                  })
-                )
-                .then((v) => v.json())) as FetchResult);
-            if (args[2]?.cached) {
-              fetchCache[args[0]] = response;
+          invoke: async (params) => {
+            if (params.type === "custom") {
+              const value: {
+                name: string;
+                data: [string, string, FetchFunctionOptions];
+              } = params.data;
+              if (value.name === "fetchModule") {
+                const response = (await env.__viteFetchModule
+                  .fetch(
+                    new Request("http://localhost", {
+                      method: "POST",
+                      body: JSON.stringify(value.data),
+                    })
+                  )
+                  .then((v) => v.json())) as FetchResult;
+                return { result: response };
+              }
             }
-
-            return response;
+            return { result: null };
           },
         },
+        hmr: false,
       },
       {
         async runInlinedModule(context, transformed, { id }) {
@@ -97,16 +101,22 @@ export default {
     _context: ExecutionContext
   ) {
     const runner = new WorkerdModuleRunner(env);
-    const entry = request.headers.get("x-vite-entry")!;
+    const entry = request.headers.get("x-vite-entry");
+    if (!entry) {
+      return new Response("No entry specified", {
+        status: 400,
+      });
+    }
     try {
       const mod = await runner.import(entry);
       const handler = mod.default as ExportedHandler;
-      if (!handler.fetch)
-        throw new Error(`Module does not have a fetch handler`);
-
+      if (!handler.fetch) {
+        throw new Error("Module does not have a fetch handler");
+      }
       const result = handler.fetch(request, env, {
         waitUntil: () => {},
         passThroughOnException() {},
+        props: undefined,
       });
       return result;
     } catch (e) {

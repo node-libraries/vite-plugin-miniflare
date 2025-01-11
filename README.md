@@ -1,5 +1,7 @@
 # vite-plugin-miniflare
 
+vite@6 or higher is required.
+
 ## Sample code
 
 https://github.com/SoraKumo001/hono-miniflare  
